@@ -223,6 +223,7 @@ dns_dual='1.1.1.1 2606:4700:4700::1111'
 hostname=
 network_console=false
 set_debian_version 13
+daily_d_i_override=
 mirror_protocol=https
 mirror_host=deb.debian.org
 mirror_directory=/debian
@@ -350,10 +351,10 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --release-d-i)
-            daily_d_i=false
+            daily_d_i_override=false
             ;;
         --daily-d-i)
-            daily_d_i=true
+            daily_d_i_override=true
             ;;
         --mirror-protocol)
             mirror_protocol=$2
@@ -421,6 +422,9 @@ while [ $# -gt 0 ]; do
             ;;
         --no-force-gpt)
             force_gpt=false
+            ;;
+        --force-gpt)
+            force_gpt=true
             ;;
         --bios)
             efi=false
@@ -549,6 +553,9 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# Applied after parsing so --version/--suite later on the command line can't reset it
+[ -n "$daily_d_i_override" ] && daily_d_i=$daily_d_i_override
+
 [ -z "$architecture" ] && {
     architecture=$(dpkg --print-architecture 2> /dev/null) || {
         case $(uname -m) in
@@ -590,10 +597,6 @@ apt_services=updates
 
 installer_directory="/boot/debian-$suite"
 
-cleanup() {
-    rm -rf "$installer_directory" /etc/default/grub.d/zz-debi.cfg
-}
-
 save_preseed='cat'
 [ "$dry_run" = false ] && {
     [ "$(id -u)" -ne 0 ] && err 'root privilege is required'
@@ -609,7 +612,9 @@ elif [ "$network_console" = true ] && [ -z "$authorized_keys_url" ]; then
     prompt_password "Choose a password for the installer user of the SSH network console: "
 fi
 
-[ "$dry_run" = false ] && trap cleanup EXIT
+# Path expanded now: $installer_directory is later rewritten to a GRUB-relative path
+# shellcheck disable=SC2064
+[ "$dry_run" = false ] && trap "rm -rf '$installer_directory' /etc/default/grub.d/zz-debi.cfg" EXIT
 
 $save_preseed << EOF
 # Localization

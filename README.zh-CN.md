@@ -229,7 +229,7 @@ sudo ./debi.sh --cidata my-cloud-config
 ### Oracle Cloud (Ubuntu → Debian)
 
 ```bash
-sudo ./debi.sh --cloudflare --user debian
+sudo ./debi.sh --cloudflare --bbr --user debian --authorized-keys-url https://github.com/yourusername.keys
 ```
 
 ### Google Cloud Platform
