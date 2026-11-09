@@ -921,7 +921,8 @@ EOF
 [ "$bbr" = true ] && in_target '{ echo "net.core.default_qdisc=fq"; echo "net.ipv4.tcp_congestion_control=bbr"; } > /etc/sysctl.d/bbr.conf'
 
 [ -n "$cidata" ] && {
-    in_target 'printf "datasource_list: [ NoCloud ]\n\ndatasource:\n  ConfigDrive:\n    dsmode: disabled\n  NoCloud:\n    fs_label: ~\n    dsmode: local\n" > /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
+    # No backslash escapes here: dash's echo would expand them when writing late_command to preseed.cfg
+    in_target '{ echo "datasource_list: [ NoCloud ]"; echo; echo "datasource:"; echo "  ConfigDrive:"; echo "    dsmode: disabled"; echo "  NoCloud:"; echo "    fs_label: ~"; echo "    dsmode: local"; } > /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
 }
 
 late_command='true'
@@ -972,7 +973,8 @@ EOF
         echo 'zz_debi=/etc/default/grub.d/zz-debi.cfg; if [ -f "$zz_debi" ]; then . "$zz_debi"; fi' >> /etc/default/grub
         if command_exists grub2-mkconfig; then
             grub_cfg=/boot/grub2/grub.cfg
-            [ -d /sys/firmware/efi ] && grub_cfg=/boot/efi/EFI/*/grub.cfg
+            # Arguments are already consumed, so reuse $@ to expand the glob
+            [ -d /sys/firmware/efi ] && set -- /boot/efi/EFI/*/grub.cfg && [ -f "$1" ] && grub_cfg=$1
             grub2-mkconfig -o "$grub_cfg"
         else
             grub_cfg=/boot/grub/grub.cfg
