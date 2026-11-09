@@ -271,6 +271,7 @@ cidata=
 while [ $# -gt 0 ]; do
     case $1 in
         --cdn)
+            mirror_host=deb.debian.org
             ;;
         --aws)
             mirror_host=cdn-aws.deb.debian.org
@@ -475,8 +476,15 @@ while [ $# -gt 0 ]; do
         --no-apt-backports)
             apt_backports=false
             ;;
+        --install-recommends)
+            install_recommends=true
+            ;;
         --no-install-recommends)
             install_recommends=false
+            ;;
+        --upgrade)
+            upgrade=$2
+            shift
             ;;
         --install)
             install=$2
@@ -577,6 +585,10 @@ apt_services=updates
 
 installer_directory="/boot/debian-$suite"
 
+cleanup() {
+    rm -rf "$installer_directory" /etc/default/grub.d/zz-debi.cfg
+}
+
 save_preseed='cat'
 [ "$dry_run" = false ] && {
     [ "$(id -u)" -ne 0 ] && err 'root privilege is required'
@@ -591,6 +603,8 @@ if [ "$account_setup" = true ]; then
 elif [ "$network_console" = true ] && [ -z "$authorized_keys_url" ]; then
     prompt_password "Choose a password for the installer user of the SSH network console: "
 fi
+
+[ "$dry_run" = false ] && trap cleanup EXIT
 
 $save_preseed << EOF
 # Localization
@@ -991,3 +1005,5 @@ menuentry 'Debian Installer' --id debi {
     initrd $initrd
 }
 EOF
+
+trap - EXIT
