@@ -217,7 +217,7 @@ netmask=
 gateway=
 dns='1.1.1.1 1.0.0.1'
 dns6='2606:4700:4700::1111 2606:4700:4700::1001'
-dns10='1.1.1.1 2606:4700:4700::1111'
+dns_dual='1.1.1.1 2606:4700:4700::1111'
 hostname=
 network_console=false
 set_debian_version 13
@@ -483,7 +483,10 @@ while [ $# -gt 0 ]; do
             install_recommends=false
             ;;
         --upgrade)
-            upgrade=$2
+            case $2 in
+                none|safe-upgrade|full-upgrade) upgrade=$2 ;;
+                *) err "Unsupported upgrade mode: $2 (use none, safe-upgrade or full-upgrade)" ;;
+            esac
             shift
             ;;
         --install)
@@ -630,7 +633,7 @@ EOF
 }
 
 [ -z "$ip" ] && {
-    echo "d-i netcfg/get_nameservers string $dns10" | $save_preseed
+    echo "d-i netcfg/get_nameservers string $dns_dual" | $save_preseed
 }
 
 if [ -n "$hostname" ]; then
@@ -953,25 +956,21 @@ EOF
     if command_exists update-grub; then
         grub_cfg=/boot/grub/grub.cfg
         update-grub
-    elif command_exists grub2-mkconfig; then
+    elif command_exists grub2-mkconfig || command_exists grub-mkconfig; then
         tmp=$(mktemp)
         grep -vF zz_debi /etc/default/grub > "$tmp"
         cat "$tmp" > /etc/default/grub
         rm "$tmp"
         # shellcheck disable=SC2016
         echo 'zz_debi=/etc/default/grub.d/zz-debi.cfg; if [ -f "$zz_debi" ]; then . "$zz_debi"; fi' >> /etc/default/grub
-        grub_cfg=/boot/grub2/grub.cfg
-        [ -d /sys/firmware/efi ] && grub_cfg=/boot/efi/EFI/*/grub.cfg
-        grub2-mkconfig -o "$grub_cfg"
-    elif command_exists grub-mkconfig; then
-        tmp=$(mktemp)
-        grep -vF zz_debi /etc/default/grub > "$tmp"
-        cat "$tmp" > /etc/default/grub
-        rm "$tmp"
-        # shellcheck disable=SC2016
-        echo 'zz_debi=/etc/default/grub.d/zz-debi.cfg; if [ -f "$zz_debi" ]; then . "$zz_debi"; fi' >> /etc/default/grub
-        grub_cfg=/boot/grub/grub.cfg
-        grub-mkconfig -o "$grub_cfg"
+        if command_exists grub2-mkconfig; then
+            grub_cfg=/boot/grub2/grub.cfg
+            [ -d /sys/firmware/efi ] && grub_cfg=/boot/efi/EFI/*/grub.cfg
+            grub2-mkconfig -o "$grub_cfg"
+        else
+            grub_cfg=/boot/grub/grub.cfg
+            grub-mkconfig -o "$grub_cfg"
+        fi
     else
         err 'Could not find "update-grub" or "grub2-mkconfig" or "grub-mkconfig" command'
     fi
