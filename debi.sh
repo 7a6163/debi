@@ -44,6 +44,8 @@ configure_sshd() {
 }
 
 prompt_password() {
+    [ -n "$password" ] && return
+
     local prompt=
 
     if [ $# -gt 0 ]; then
