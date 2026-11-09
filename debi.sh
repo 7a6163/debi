@@ -234,7 +234,12 @@ sudo_with_password=false
 timezone=UTC
 ntp=time.google.com
 disk_partitioning=true
-disk="/dev/$(lsblk -no PKNAME "$(df /boot | grep -Eo '/dev/[a-z0-9]+')")"
+disk=
+_boot_dev=$(df /boot 2>/dev/null | grep -Eo '/dev/[a-z0-9]+') || true
+if [ -n "$_boot_dev" ]; then
+    _parent=$(lsblk -no PKNAME "$_boot_dev" 2>/dev/null) || true
+    [ -n "$_parent" ] && disk="/dev/$_parent"
+fi
 force_gpt=true
 efi=
 esp=106
@@ -906,7 +911,6 @@ echo "d-i preseed/late_command string $late_command" | $save_preseed
 save_grub_cfg='cat'
 [ "$dry_run" = false ] && {
     base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/$suite/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
-    [ "$suite" = stretch ] && [ "$efi" = true ] && base_url="$mirror_protocol://$mirror_host$mirror_directory/dists/buster/main/installer-$architecture/current/images/netboot/debian-installer/$architecture"
     [ "$daily_d_i" = true ] && base_url="https://d-i.debian.org/daily-images/$architecture/daily/netboot/debian-installer/$architecture"
     firmware_url="https://cdimage.debian.org/cdimage/unofficial/non-free/firmware/$suite/current/firmware.cpio.gz"
 
