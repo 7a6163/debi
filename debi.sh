@@ -694,11 +694,11 @@ d-i mirror/suite string $suite
 EOF
 
 [ "$account_setup" = true ] && {
-    password_hash=$(mkpasswd -m sha-256 "$password" 2> /dev/null) ||
-    password_hash=$(openssl passwd -5 "$password" 2> /dev/null) ||
-    password_hash=$(busybox mkpasswd -m sha256 "$password" 2> /dev/null) || {
+    password_hash=$(printf '%s' "$password" | mkpasswd -m sha-256 --stdin 2> /dev/null) ||
+    password_hash=$(printf '%s' "$password" | openssl passwd -5 -stdin 2> /dev/null) ||
+    password_hash=$(printf '%s' "$password" | busybox mkpasswd -m sha256 -P 0 2> /dev/null) || {
         for python in python3 python python2; do
-            password_hash=$("$python" -c 'import crypt, sys; print(crypt.crypt(sys.argv[1], crypt.mksalt(crypt.METHOD_SHA256)))' "$password" 2> /dev/null) && break
+            password_hash=$(printf '%s' "$password" | "$python" -c 'import crypt, sys; print(crypt.crypt(sys.stdin.read(), crypt.mksalt(crypt.METHOD_SHA256)))' 2> /dev/null) && break
         done
     }
 
