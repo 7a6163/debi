@@ -35,7 +35,7 @@ The script is a single linear pipeline — no sourced files, no subshells, no ba
 
 ### Key patterns
 
-- **`in_target()` accumulates commands** into `$in_target_script` (semicolon-separated), which gets executed as a single `preseed/late_command` at the end of installation. Order matters — calls to `in_target` throughout the script build up this command string.
+- **`in_target()` accumulates commands** into `$in_target_script` (`&&`-chained), which gets executed as a single `preseed/late_command` at the end of installation. Order matters — calls to `in_target` throughout the script build up this command string, and a failure in any command aborts the rest.
 - **`$save_preseed` / `$save_grub_cfg`** are either `cat` (dry-run, output to stdout) or `tee -a <file>` (real run). This dual-mode pattern means the same heredocs serve both paths.
 - **Version → suite resolution** is a two-step chain: `set_debian_version()` → `set_suite()` → `set_daily_d_i()` + `set_security_archive()`. All three must stay in sync when adding/removing Debian releases.
 - **`download()`** tries wget → curl → busybox wget in order. Proxy env vars are set from `$mirror_proxy` only if no proxy env vars were already set.
@@ -44,6 +44,6 @@ The script is a single linear pipeline — no sourced files, no subshells, no ba
 ## Development Guidelines
 
 - **POSIX sh only** — the shebang is `#!/bin/sh` with `# shellcheck shell=dash`. No bashisms (no arrays, no `[[ ]]`, no `$(( ))` arithmetic beyond what POSIX allows, no `local` beyond simple variables).
-- **When adding/removing a Debian release**: update every `case` statement that matches suite names — there are ~7 of them (`set_debian_version`, `set_suite`/`set_security_archive`, `set_daily_d_i`, `has_cloud_kernel`, `has_backports`, `non_free_firmware_available`). Grep for the suite name to find them all.
+- **When adding/removing a Debian release**: update `set_suite()` (all suite properties in one place) and `set_debian_version()` (version number → suite mapping). `has_cloud_kernel()` only needs updating if the new suite has different arch support than its neighbors.
 - **When adding a new flag**: add it to the `while/case` argument parser, set a default variable near line 228, and update README.md.
 - **The script modifies the host system** (GRUB config, `/boot/debian-*/`). Changes are reversible before reboot. Always test with `--dry-run` first.

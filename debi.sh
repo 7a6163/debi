@@ -28,7 +28,7 @@ in_target() {
 
     if [ -n "$command" ]; then
         [ -z "$in_target_script" ] && in_target_script='true'
-        in_target_script="$in_target_script;$command"
+        in_target_script="$in_target_script &&$command"
     fi
 }
 
@@ -109,47 +109,53 @@ set_mirror_proxy() {
     esac
 }
 
-# Determines the security repository path format based on Debian suite
-# - Buster (Debian 10): Uses old format "buster/updates" 
-# - Bullseye onwards and testing: Uses new format "suite-security"
-# - Sid/unstable: No security repository (fixes go directly to unstable)
-set_security_archive() {
+# All suite-specific properties in one place.
+# When adding a new Debian release, only this block and set_debian_version need updating.
+set_suite() {
+    suite=$1
+
     case $suite in
         buster)
             security_archive="$suite/updates"
+            daily_d_i=false
+            # buster backports are in archive.debian.org; mirror support varies, so treat as unavailable
+            _has_backports=false
+            _has_nonfree_fw=false
             ;;
-        bullseye|oldoldstable|bookworm|oldstable|trixie|stable|forky|testing)
+        bullseye|oldoldstable)
             security_archive="$suite-security"
+            daily_d_i=false
+            # bullseye backports are in archive.debian.org; same as buster
+            _has_backports=false
+            _has_nonfree_fw=false
+            ;;
+        bookworm|oldstable)
+            security_archive="$suite-security"
+            daily_d_i=false
+            _has_backports=true
+            _has_nonfree_fw=true
+            ;;
+        trixie|stable)
+            security_archive="$suite-security"
+            daily_d_i=false
+            _has_backports=true
+            _has_nonfree_fw=true
+            ;;
+        forky|testing)
+            security_archive="$suite-security"
+            daily_d_i=true
+            _has_backports=true
+            _has_nonfree_fw=true
             ;;
         sid|unstable)
             security_archive=''
-            ;;
-        *)
-            err "Unsupported suite: $suite"
-    esac
-}
-
-# Determines whether to use daily or stable installer builds
-# - Stable/oldstable releases: Use stable installer builds (thoroughly tested)
-# - Testing/unstable: Use daily installer builds (latest changes, may be less stable)
-# Daily builds are necessary for testing/unstable as they need the latest kernel and packages
-set_daily_d_i() {
-    case $suite in
-        buster|bullseye|oldoldstable|bookworm|oldstable|trixie|stable)
-            daily_d_i=false
-            ;;
-        forky|testing|sid|unstable)
             daily_d_i=true
+            _has_backports=false
+            _has_nonfree_fw=true
             ;;
         *)
             err "Unsupported suite: $suite"
     esac
-}
-
-set_suite() {
-    suite=$1
-    set_daily_d_i
-    set_security_archive
 }
 
 # Maps version numbers and release aliases to actual suite names
@@ -186,43 +192,22 @@ set_debian_version() {
     esac
 }
 
-# Checks if cloud-optimized kernels are available for the current architecture and suite
-# Cloud kernels are minimal kernels optimized for cloud/virtual environments
-# - Buster: Only amd64 has cloud kernel, arm64 requires backports
-# - Bullseye onwards: Both amd64 and arm64 have cloud kernels
-# - Other architectures (i386, etc.): No cloud kernels available
-# Returns 0 if available, 1 if not
 has_cloud_kernel() {
-    case $suite in
-        buster)
-            [ "$architecture" = amd64 ] && return
-            [ "$architecture" = arm64 ] && [ "$bpo_kernel" = true ] && return
-            ;;
-        bullseye|oldoldstable|bookworm|oldstable|trixie|stable|forky|testing|sid|unstable)
-            [ "$architecture" = amd64 ] || [ "$architecture" = arm64 ] && return
-    esac
+    if [ "$suite" = buster ]; then
+        [ "$architecture" = amd64 ] && return
+        [ "$architecture" = arm64 ] && [ "$bpo_kernel" = true ] && return
+    else
+        [ "$architecture" = amd64 ] || [ "$architecture" = arm64 ] && return
+    fi
 
     local tmp; tmp=''; [ "$bpo_kernel" = true ] && tmp='-backports'
     warn "No cloud kernel is available for $architecture/$suite$tmp"
-
     return 1
 }
 
-# Checks if backports repository is available for the current suite
-# Backports provide newer versions of packages from testing/unstable rebuilt for stable releases
-# - All stable releases and testing: Have backports available
-# - Sid/unstable: No backports (already has the latest packages)
-# Returns 0 if available, 1 if not
 has_backports() {
-    case $suite in
-        bookworm|oldstable|trixie|stable|forky|testing) return
-    esac
-
-    # buster|bullseye|oldoldstable DO have backports, but it's in archive.debian.org now
-    # considering mirrors support varies and the code complexity we must accommodate, we just treat them as no backports available
-
+    [ "$_has_backports" = true ] && return
     warn "No backports kernel is available for $suite"
-
     return 1
 }
 
@@ -574,19 +559,8 @@ done
 [ -n "$authorized_keys_url" ] && ! download "$authorized_keys_url" /dev/null &&
 err "Failed to download SSH authorized public keys from \"$authorized_keys_url\""
 
-# Determines if the non-free-firmware repository component is available
-# Starting from Debian 12 (Bookworm), firmware was split into a separate component
-# to make it easier to include necessary firmware while keeping main free
-# - Bookworm onwards: non-free-firmware component available
-# - Bullseye and earlier: Firmware is in non-free component
-non_free_firmware_available=false
-case $suite in
-    bookworm|oldstable|trixie|stable|forky|testing|sid|unstable)
-        non_free_firmware_available=true
-        ;;
-    *)
-        apt_non_free_firmware=false
-esac
+non_free_firmware_available=$_has_nonfree_fw
+[ "$_has_nonfree_fw" = false ] && apt_non_free_firmware=false
 
 apt_components=main
 [ "$apt_contrib" = true ] && apt_components="$apt_components contrib"
@@ -918,14 +892,7 @@ EOF
 [ "$bbr" = true ] && in_target '{ echo "net.core.default_qdisc=fq"; echo "net.ipv4.tcp_congestion_control=bbr"; } > /etc/sysctl.d/bbr.conf'
 
 [ -n "$cidata" ] && {
-    in_target 'echo "datasource_list: [ NoCloud ]" > /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "datasource:" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "  ConfigDrive:" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "    dsmode: disabled" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "  NoCloud:" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "    fs_label: ~" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
-    in_target 'echo "    dsmode: local" >> /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
+    in_target 'printf "datasource_list: [ NoCloud ]\n\ndatasource:\n  ConfigDrive:\n    dsmode: disabled\n  NoCloud:\n    fs_label: ~\n    dsmode: local\n" > /etc/cloud/cloud.cfg.d/91_set_datasource.cfg'
 }
 
 late_command='true'
