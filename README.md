@@ -18,7 +18,7 @@ A script that reinstalls any VPS or physical machine to minimal Debian via netwo
 
 ```bash
 # Download the script
-curl -fLO https://raw.githubusercontent.com/bohanyang/debi/master/debi.sh
+curl -fLO https://raw.githubusercontent.com/7a6163/debi/master/debi.sh
 chmod +x debi.sh
 
 # Basic installation (creates user 'debian' with sudo access)
@@ -52,9 +52,9 @@ sudo reboot
 
 | Preset | Mirror | DNS | NTP | Best for |
 |--------|---------|-----|-----|----------|
-| *Default* | deb.debian.org | Google DNS | time.google.com | Global |
+| *Default* | deb.debian.org | Cloudflare | time.google.com | Global |
 | `--cloudflare` | deb.debian.org | Cloudflare | time.cloudflare.com | Global (privacy) |
-| `--aws` | cdn-aws.deb.debian.org | Google DNS | time.aws.com | AWS instances |
+| `--aws` | cdn-aws.deb.debian.org | Cloudflare | time.aws.com | AWS instances |
 | `--aliyun` | mirrors.aliyun.com | AliDNS | time.amazonaws.cn | China |
 | `--ustc` | mirrors.ustc.edu.cn | DNSPod | time.amazonaws.cn | China |
 | `--tuna` | mirrors.tuna.tsinghua.edu.cn | DNSPod | time.amazonaws.cn | China |

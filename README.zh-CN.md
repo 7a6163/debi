@@ -18,7 +18,7 @@
 
 ```bash
 # 下载脚本
-curl -fLO https://raw.githubusercontent.com/bohanyang/debi/master/debi.sh
+curl -fLO https://raw.githubusercontent.com/7a6163/debi/master/debi.sh
 chmod +x debi.sh
 
 # 基础安装 (会创建一个拥有 sudo 权限的 'debian' 用户)
@@ -53,9 +53,9 @@ sudo reboot
 
 | 预设 | 镜像源 | DNS | NTP | 适用场景 |
 | :--- | :--- | :--- | :--- | :--- |
-| *默认* | deb.debian.org | Google DNS | time.google.com | 全球通用 |
+| *默认* | deb.debian.org | Cloudflare | time.google.com | 全球通用 |
 | `--cloudflare` | deb.debian.org | Cloudflare | time.cloudflare.com | 全球通用 (注重隐私) |
-| `--aws` | cdn-aws.deb.debian.org | Google DNS | time.aws.com | AWS 实例 |
+| `--aws` | cdn-aws.deb.debian.org | Cloudflare | time.aws.com | AWS 实例 |
 | `--aliyun` | mirrors.aliyun.com | AliDNS | time.amazonaws.cn | 中国大陆 |
 | `--ustc` | mirrors.ustc.edu.cn | DNSPod | time.amazonaws.cn | 中国大陆 |
 | `--tuna` | mirrors.tuna.tsinghua.edu.cn | DNSPod | time.amazonaws.cn | 中国大陆 |

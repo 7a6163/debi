@@ -17,7 +17,7 @@
 
 ```bash
 # スクリプトをダウンロード
-curl -fLO [https://raw.githubusercontent.com/bohanyang/debi/master/debi.sh](https://raw.githubusercontent.com/bohanyang/debi/master/debi.sh)
+curl -fLO https://raw.githubusercontent.com/7a6163/debi/master/debi.sh
 chmod +x debi.sh
 
 # 基本的なインストール（sudo権限を持つ 'debian' ユーザーを作成）
@@ -52,9 +52,9 @@ sudo reboot
 
 | プリセット | ミラー | DNS | NTP | 最適な環境 |
 |---|---|---|---|---|
-| *Default* | deb.debian.org | Google DNS | time.google.com | グローバル |
+| *Default* | deb.debian.org | Cloudflare | time.google.com | グローバル |
 | `--cloudflare` | deb.debian.org | Cloudflare | time.cloudflare.com | グローバル (プライバシー重視) |
-| `--aws` | cdn-aws.deb.debian.org | Google DNS | time.aws.com | AWSインスタンス |
+| `--aws` | cdn-aws.deb.debian.org | Cloudflare | time.aws.com | AWSインスタンス |
 | `--aliyun` | mirrors.aliyun.com | AliDNS | time.amazonaws.cn | 中国 |
 | `--ustc` | mirrors.ustc.edu.cn | DNSPod | time.amazonaws.cn | 中国 |
 | `--tuna` | mirrors.tuna.tsinghua.edu.cn | DNSPod | time.amazonaws.cn | 中国 |
